@@ -1,0 +1,20 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Play short videos based on video"
+    },
+    {
+      "name": "fast_forwarding",
+      "value": " 2.0X fast forwarding"
+    }
+  ]
+}
