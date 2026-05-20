@@ -1,0 +1,135 @@
+/*
+ * Copyright (c) 2026 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "MediaError.h"
+#include "MediaLog.h"
+#include "CodecCallback.h"
+#include "AudioDecoder.h"
+
+#undef LOG_TAG
+#define LOG_TAG "AudioDecoder"
+
+AudioDecoder::~AudioDecoder() { Release(); }
+
+int32_t AudioDecoder::Create(const std::string &codecMime)
+{
+    decoder_ = OH_AudioCodec_CreateByMime(codecMime.c_str(), false);
+    CHECK_AND_RETURN_RET_LOG(decoder_ != nullptr, MEDIA_ERR_ERROR, "Create failed");
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::Start()
+{
+    CHECK_AND_RETURN_RET_LOG(decoder_ != nullptr, MEDIA_ERR_ERROR, "Decoder is null");
+
+    int ret = OH_AudioCodec_Start(decoder_);
+    CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "Start failed, ret: %{public}d", ret);
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::Config(const SampleInfo &sampleInfo, CodecUserData *codecUserData)
+{
+    CHECK_AND_RETURN_RET_LOG(decoder_ != nullptr, MEDIA_ERR_ERROR, "Decoder is null");
+    CHECK_AND_RETURN_RET_LOG(codecUserData != nullptr, MEDIA_ERR_ERROR, "Invalid param: codecUserData");
+
+    // Configure audio decoder
+    int32_t ret = Configure(sampleInfo);
+    CHECK_AND_RETURN_RET_LOG(ret == MEDIA_ERR_OK, MEDIA_ERR_ERROR, "Configure failed");
+
+    // SetCallback for audio decoder
+    ret = SetCallback(codecUserData);
+    CHECK_AND_RETURN_RET_LOG(ret == MEDIA_ERR_OK, MEDIA_ERR_ERROR,
+                             "Set callback failed, ret: %{public}d", ret);
+
+    // Prepare audio decoder
+    {
+        int ret = OH_AudioCodec_Prepare(decoder_);
+        CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "Prepare failed, ret: %{public}d", ret);
+    }
+
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::Configure(const SampleInfo &sampleInfo)
+{
+    OH_AVFormat *format = OH_AVFormat_Create();
+    CHECK_AND_RETURN_RET_LOG(format != nullptr, MEDIA_ERR_ERROR, "AVFormat create failed");
+
+    OH_AVFormat_SetIntValue(format, OH_MD_KEY_AUDIO_SAMPLE_FORMAT, SAMPLE_S16LE);
+    OH_AVFormat_SetIntValue(format, OH_MD_KEY_AUD_CHANNEL_COUNT, sampleInfo.audioInfo.audioChannelCount);
+    OH_AVFormat_SetIntValue(format, OH_MD_KEY_AUD_SAMPLE_RATE, sampleInfo.audioInfo.audioSampleRate);
+    OH_AVFormat_SetLongValue(format, OH_MD_KEY_CHANNEL_LAYOUT, sampleInfo.audioInfo.audioChannelLayout);
+    MEDIA_LOGI("====== AudioDecoder config ======");
+
+    int ret = OH_AudioCodec_Configure(decoder_, format);
+    MEDIA_LOGI("====== AudioDecoder config ======");
+    OH_AVFormat_Destroy(format);
+    format = nullptr;
+    CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "Config failed, ret: %{public}d", ret);
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::SetCallback(CodecUserData *codecUserData)
+{
+    int32_t ret = AV_ERR_OK;
+    ret = OH_AudioCodec_RegisterCallback(decoder_,
+                                         {CodecCallback::OnCodecError, CodecCallback::OnCodecFormatChange,
+                                          CodecCallback::OnNeedInputBuffer, CodecCallback::OnNewOutputBuffer},
+                                         codecUserData);
+    CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "Set callback failed, ret: %{public}d", ret);
+
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::Release()
+{
+    if (decoder_ != nullptr) {
+        OH_AudioCodec_Flush(decoder_);
+        OH_AudioCodec_Stop(decoder_);
+        OH_AudioCodec_Destroy(decoder_);
+        decoder_ = nullptr;
+    }
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::PushInputBuffer(CodecBufferInfo &info)
+{
+    CHECK_AND_RETURN_RET_LOG(decoder_ != nullptr, MEDIA_ERR_ERROR, "Decoder is null");
+    int32_t ret = OH_AVBuffer_SetBufferAttr(reinterpret_cast<OH_AVBuffer *>(info.buffer), &info.attr);
+    CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "Set avbuffer attr failed");
+    ret = OH_AudioCodec_PushInputBuffer(decoder_, info.bufferIndex);
+    CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "Push input data failed");
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::FreeOutputBuffer(uint32_t bufferIndex)
+{
+    CHECK_AND_RETURN_RET_LOG(decoder_ != nullptr, MEDIA_ERR_ERROR, "Decoder is null");
+
+    int32_t ret = MEDIA_ERR_OK;
+    ret = OH_AudioCodec_FreeOutputBuffer(decoder_, bufferIndex);
+    CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "Free output data failed, ret: %{public}d", ret);
+    return MEDIA_ERR_OK;
+}
+
+int32_t AudioDecoder::Flush(CodecUserData *userdata)
+{
+    CHECK_AND_RETURN_RET_LOG(userdata != nullptr, MEDIA_ERR_ERROR, "Invalid userdata ptr");
+    std::unique_lock<std::shared_mutex> flushLock(userdata->flushMutex_);
+    int32_t ret = OH_AudioCodec_Flush(decoder_);
+    CHECK_AND_RETURN_RET_LOG(ret == AV_ERR_OK, MEDIA_ERR_ERROR, "flush failed, ret: %{public}d", ret);
+    flushLock.unlock();
+    return MEDIA_ERR_OK;
+}
