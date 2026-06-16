@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "模块描述"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "VideoControl"
+    },
+    {
+      "name": "Default_speed_text",
+      "value": "倍速"
+    },
+    {
+      "name": "Episodes",
+      "value": "选集"
+    },
+    {
+      "name": "Video_name",
+      "value": "Sample videos"
+    }
+  ]
+}

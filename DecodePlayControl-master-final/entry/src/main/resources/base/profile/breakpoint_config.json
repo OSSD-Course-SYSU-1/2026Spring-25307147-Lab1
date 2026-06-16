@@ -1,0 +1,49 @@
+{
+  "breakpoints": {
+    "sm": 600,
+    "md": 840,
+    "lg": 1024,
+    "xl": 1024
+  },
+  "deviceTypes": {
+    "phone": {
+      "minWidth": 0,
+      "maxWidth": 600,
+      "defaultBreakpoint": "sm"
+    },
+    "tablet": {
+      "minWidth": 600,
+      "maxWidth": 1024,
+      "defaultBreakpoint": "md"
+    },
+    "foldable": {
+      "minWidth": 600,
+      "maxWidth": 1200,
+      "defaultBreakpoint": "lg"
+    }
+  },
+  "layoutStrategies": {
+    "default": {
+      "sm": {
+        "columns": 4,
+        "margin": 16,
+        "gutter": 8
+      },
+      "md": {
+        "columns": 8,
+        "margin": 24,
+        "gutter": 12
+      },
+      "lg": {
+        "columns": 12,
+        "margin": 32,
+        "gutter": 16
+      },
+      "xl": {
+        "columns": 12,
+        "margin": 48,
+        "gutter": 20
+      }
+    }
+  }
+}

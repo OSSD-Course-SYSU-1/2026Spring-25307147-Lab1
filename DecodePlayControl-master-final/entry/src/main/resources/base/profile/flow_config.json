@@ -1,0 +1,23 @@
+{
+  "flow": {
+    "timeout": 10000,
+    "maxSnapshotSize": 10485760,
+    "retryCount": 3,
+    "retryDelay": 1000
+  },
+  "transfer": {
+    "chunkSize": 65536,
+    "maxConcurrentTransfers": 3
+  },
+  "deviceDiscovery": {
+    "scanInterval": 5000,
+    "deviceTimeout": 30000,
+    "filterCapabilities": ["videoPlayback", "screenMirroring"]
+  },
+  "stateSnapshot": {
+    "includeUserPreferences": true,
+    "includePlaybackState": true,
+    "includeDanmakuState": true,
+    "maxHistoryRecords": 100
+  }
+}
